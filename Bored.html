@@ -31,7 +31,7 @@
 </head>
 <body>
 <canvas id="game" width="800" height="480"></canvas>
-<p id="help">Click Play, then choose your class. M: sound on/off.</p>
+<p id="help">Click Play, then choose your series and your character. M: sound on/off.</p>
 
 <div id="devlock" class="devwrap" hidden>
   <div class="devbox" style="width:min(320px,90vw)">
@@ -123,15 +123,25 @@ let state = "menu";
 
 // Classes: each one plays differently
 const CLASSES = [
-  { id: "wizard",  name: "Saiyan",  desc: "Fires yellow ki blasts that explode. Your special attack choices: Kamehameha, Galick Gun, or Eraser Cannon" },
-  { id: "fighter", name: "Shinigami", desc: "A sword brawler with extra HP. Slashes hit everything in an arc and cut enemy shots. Dash with E or Shift. Unlock Shikai for a huge blue sword." }
+  { id: "goku",   base: "wizard", series: "db", attack: "Kamehameha",    name: "The Saiyan Raised on Earth",  desc: "Fires yellow ki blasts that explode. Special attack: the Kamehameha. His path: Super Saiyan all the way to True Creation." },
+  { id: "vegeta", base: "wizard", series: "db", attack: "Galick Gun",    name: "Prince of all Saiyans",       desc: "Fires yellow ki blasts that explode. Special attack: the Galick Gun. His path: Ego, then Destruction." },
+  { id: "broly",  base: "wizard", series: "db", attack: "Eraser Cannon", name: "The Legendary Super Saiyan",  desc: "Fires yellow ki blasts that explode. Special attack: the Eraser Cannon. His path: Wrathful, then Rage." },
+  { id: "shinigami", base: "fighter", series: "bleach", name: "Shinigami", desc: "A sword brawler with extra HP. Slashes hit everything in an arc and cut enemy shots. Dash with E or Shift. Unlock Shikai for a huge blue sword." }
 ];
-let chosenClass = "wizard";
+// The series you pick first (more of them are coming)
+const SERIES = [
+  { id: "db",       name: "Dragon Ball", desc: "Saiyans: ki blasts, special attacks and transformations." },
+  { id: "bleach",   name: "Bleach",      desc: "Shinigami: a sword brawler with Shikai, Bankai and more." },
+  { id: "naruto",   name: "Naruto",      desc: "", locked: true },
+  { id: "onepiece", name: "One Piece",   desc: "", locked: true }
+];
+let chosenClass = "wizard", chosenCharacter = "goku", chosenSeries = "db";
+function seriesClasses() { return CLASSES.filter(c => c.series === chosenSeries); }
 
 // The help line under the game changes with the screen and the class
 const HELP = {
-  menu:    "Click Play, then choose your class. M: sound on/off.",
-  wizard:  "Move: WASD or arrow keys. Aim with the mouse. Ki blast: click or Space (it explodes and hurts nearby enemies). Special attack (your first upgrade card picks the Kamehameha, Galick Gun or Eraser Cannon): hold E to charge, release to fire. Transformation (unlock it with an upgrade card): press Q. Grab a fist to smash and a potion to heal. Pick upgrades with the mouse or keys 1-3. M: sound on/off. Restart: R.",
+  menu:    "Click Play, then choose your series and your character. M: sound on/off.",
+  wizard:  "Move: WASD or arrow keys. Aim with the mouse. Ki blast: click or Space (it explodes and hurts nearby enemies). Special attack (your character's: the Kamehameha, Galick Gun or Eraser Cannon): hold E to charge, release to fire. Transformation (unlock it with an upgrade card): press Q. Grab a fist to smash and a potion to heal. Pick upgrades with the mouse or keys 1-3. M: sound on/off. Restart: R.",
   fighter: "Move: WASD or arrow keys. Aim with the mouse. Slash: click or Space (it also cuts enemy shots). Dash: E or Shift (costs stamina, and you can't be hurt mid-dash). Shikai (unlock it with an upgrade card): press Q for a huge blue sword (the Bankai card evolves it). Grab a fist to smash and a potion to heal. Pick upgrades with the mouse or keys 1-3. M: sound on/off. Restart: R."
 };
 function setHelp(k) { document.getElementById("help").textContent = HELP[k]; }
@@ -142,21 +152,29 @@ const BTN = {
   play: { x: 300, y: 250, w: 200, h: 56, label: "Play" },
   back: { x: 300, y: 405, w: 200, h: 50, label: "Back" }
 };
-const CLASS_CARD = { w: 260, h: 300, gap: 40, y: 90 };
+const CLASS_CARD = { w: 230, h: 310, gap: 24, y: 90 };
+const SERIES_CARD = { w: 170, h: 290, gap: 24, y: 80 };
+function seriesX(i) { return (W - (SERIES.length * SERIES_CARD.w + (SERIES.length - 1) * SERIES_CARD.gap)) / 2 + i * (SERIES_CARD.w + SERIES_CARD.gap); }
+function seriesAt(mx, my) { for (let i = 0; i < SERIES.length; i++) if (mx > seriesX(i) && mx < seriesX(i) + SERIES_CARD.w && my > SERIES_CARD.y && my < SERIES_CARD.y + SERIES_CARD.h) return i; return -1; }
+function openClassSelect(id) { chosenSeries = id; const n = seriesClasses().length; CLASS_CARD.w = n >= 3 ? 230 : 260; CLASS_CARD.gap = n >= 3 ? 24 : 40; state = "class"; }
 function over(b) { return mouse.x > b.x && mouse.x < b.x + b.w && mouse.y > b.y && mouse.y < b.y + b.h; }
-function classX(i) { return (W - (CLASSES.length * CLASS_CARD.w + (CLASSES.length - 1) * CLASS_CARD.gap)) / 2 + i * (CLASS_CARD.w + CLASS_CARD.gap); }
+function classX(i) { const n = seriesClasses().length; return (W - (n * CLASS_CARD.w + (n - 1) * CLASS_CARD.gap)) / 2 + i * (CLASS_CARD.w + CLASS_CARD.gap); }
 function classAt(mx, my) {                      // which class card is the mouse over? (-1 = none)
-  for (let i = 0; i < CLASSES.length; i++) {
+  for (let i = 0; i < seriesClasses().length; i++) {
     if (mx > classX(i) && mx < classX(i) + CLASS_CARD.w && my > CLASS_CARD.y && my < CLASS_CARD.y + CLASS_CARD.h) return i;
   }
   return -1;
 }
-function chooseClass(id) {
-  chosenClass = id;
-  reset();
-  state = "playing";
-  setHelp(id);
-  sfx("pick");
+function chooseClass(id) {                       // start a run as a character (the old "wizard" / "fighter" names still work)
+  const c = CLASSES.find(x => x.id === id) || CLASSES.find(x => x.base === id) || CLASSES[0];
+  chosenCharacter = c.id; chosenClass = c.base;
+  newRun(); state = "playing"; setHelp(c.base); sfx("pick");
+}
+function newRun() { reset(); applyCharacter(); }
+function applyCharacter() {                       // your character comes with its own special attack (Goku: Kamehameha, Vegeta: Galick Gun, Broly: Eraser Cannon)
+  const c = CLASSES.find(x => x.id === chosenCharacter);
+  if (!c || !c.attack || c.base !== chosenClass) return;
+  const card = UPGRADES.find(u => u.name === c.attack); card.apply(player); player.upgrades[card.name] = 1;
 }
 const embers = [];                              // rising sparks behind the menus
 for (let i = 0; i < 50; i++) embers.push({ x: Math.random() * W, y0: Math.random() * (H + 20), v: 0.6 + Math.random() * 1.2, s: 1 + Math.random() * 2.5, hue: Math.random() * 30 });
@@ -754,9 +772,9 @@ function redLightning(dmg) {                       // Kakuja v4.1: lightning to 
   for (const e of list) { kaguneHit(e, dmg * 1.2); bolts.push({ pts: lightning({ x: player.x, y: player.y }, e), t: 0, col: "255,60,70" }); }
   if (list.length) sfx("beam");
 }
-function drawLightningAura(c1 = "255,70,80", c2 = "255,255,255") {   // lightning crackling around you (red for Kakuja v4.1, green for the wings, orange for v5.2)
+function drawLightningAura(c1 = "255,70,80", c2 = "255,255,255", n = 5) {   // lightning crackling around you (red for Kakuja v4.1, green for the wings, orange for v5.2)
   const P = player; ctx.lineCap = "round";
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < n; i++) {
     const a = Math.random() * 7; let px = P.x + Math.cos(a) * (P.r + 2), py = P.y + Math.sin(a) * (P.r + 2);
     ctx.strokeStyle = i % 2 ? `rgba(${c1},0.9)` : `rgba(${c2},0.8)`; ctx.lineWidth = i % 2 ? 2 : 1.2; ctx.beginPath(); ctx.moveTo(px, py);
     for (let j = 1; j <= 3; j++) { const rr = P.r + 2 + j * 9 + Math.random() * 5, aa = a + (Math.random() - 0.5) * 0.7; ctx.lineTo(P.x + Math.cos(aa) * rr, P.y + Math.sin(aa) * rr); }
@@ -1335,11 +1353,12 @@ window.addEventListener("keydown", e => {
   if (e.key.toLowerCase() === "f") useSchrift();
   if (e.key.toLowerCase() === "q") tryVoll();                                   // Vollständig (once Yhwach has unlocked it)                                 // use your Schrift
   if (e.key.toLowerCase() === "m") muted = !muted;                              // M turns sound on/off
-  if (e.key === "Enter" && state === "menu") state = "class";
-  if (state === "class" && (e.key === "1" || e.key === "2")) chooseClass(CLASSES[Number(e.key) - 1].id);   // keys 1-2 pick a class
-  if (e.key === "Escape" && (gameOver || won || state === "class")) goMenu();
+  if (e.key === "Enter" && state === "menu") state = "series";
+  if (state === "series" && e.key >= "1" && e.key <= "4") { const sr = SERIES[Number(e.key) - 1]; if (sr && !sr.locked) { sfx("click"); openClassSelect(sr.id); } else sfx("deflect"); }   // keys 1-4 pick a series
+  if (state === "class" && e.key >= "1" && e.key <= "9" && seriesClasses()[Number(e.key) - 1]) chooseClass(seriesClasses()[Number(e.key) - 1].id);   // keys 1-3 pick a character
+  if (e.key === "Escape") { if (state === "class") state = "series"; else if (state === "series" || gameOver || won) goMenu(); }
   if (e.key === " ") { e.preventDefault(); attack(); }
-  if (e.key.toLowerCase() === "r" && (gameOver || won)) reset();
+  if (e.key.toLowerCase() === "r" && (gameOver || won)) newRun();
   if (cards && e.key >= "1" && e.key <= "3") pickCard(Number(e.key) - 1);   // keys 1-3 pick a card
 });
 window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
@@ -1351,15 +1370,23 @@ function setMouse(e) {
   mouse.y = (e.clientY - box.top) * (H / box.height);
 }
 canvas.addEventListener("mousemove", setMouse);
-canvas.addEventListener("mousedown", e => {
-  setMouse(e); initAudio();
+function menuClick() {                            // clicks on the title, series and character screens
   if (state === "menu") {
-    if (over(BTN.play)) { sfx("click"); state = "class"; }
+    if (over(BTN.play)) { sfx("click"); state = "series"; }
+  } else if (state === "series") {
+    const i = seriesAt(mouse.x, mouse.y);
+    if (i >= 0) { if (SERIES[i].locked) sfx("deflect"); else { sfx("click"); openClassSelect(SERIES[i].id); } }
+    else if (over(BTN.back)) { sfx("click"); goMenu(); }
   } else if (state === "class") {
     const i = classAt(mouse.x, mouse.y);
-    if (i >= 0) chooseClass(CLASSES[i].id);
-    else if (over(BTN.back)) { sfx("click"); goMenu(); }
-  } else if (talk) talkClick();
+    if (i >= 0) chooseClass(seriesClasses()[i].id);
+    else if (over(BTN.back)) { sfx("click"); state = "series"; }
+  }
+}
+canvas.addEventListener("mousedown", e => {
+  setMouse(e); initAudio();
+  if (state === "menu" || state === "series" || state === "class") menuClick();
+  else if (talk) talkClick();
   else if (cards) pickCard(cardAt(mouse.x, mouse.y));      // clicks pick cards while they're showing
   else if (!won) attack();
 });
@@ -1535,10 +1562,49 @@ function formFx(name, i) {
 
 function beginForm() {                            // pressing Q: the very first Super Saiyan transformation plays a cutscene
   if (formName() === "ssj" && !player.ssjSeen) { player.ssjSeen = true; scene = { t: 0, bolts: [], flash: 0 }; sfx("ominous"); return; }
+  if (formName() === "ssj2" && !player.ssj2Seen) { player.ssj2Seen = true; scene = { kind: "ssj2", t: 0 }; sfx("ominous"); return; }   // the first Super Saiyan 2 transformation has a cutscene too
   startForm();
+}
+function tickScene2() {                           // Super Saiyan 2: the surroundings go black, a red slanted line cuts through you and opens, the screen flashes red / white / black / yellow, then you transform
+  const t = ++scene.t;
+  if (t === 36) { sfx("thunder"); shake = 10; }                                   // the red line cuts through you
+  if (t === 72) { sfx("boom"); shake = 14; }                                      // and it opens
+  if (t >= 110 && t < 158 && (t - 110) % 12 === 0) { shake = 6; sfx("deflect"); } // red, white, black, yellow
+  if (t === 158) {                                                                // BURST of yellow: you transform
+    startForm(); shake = 26; sfx("bankai"); sfx("thunder");
+    for (let i = 0; i < 70; i++) { const a = Math.random() * 7, sp = 3 + Math.random() * 9; addParticle(player.x, player.y, Math.cos(a) * sp, Math.sin(a) * sp, 32, 6, false, false, "gold"); }
+  }
+  if (t >= 235) scene = null;
+}
+function drawScene2() {
+  const t = scene.t, px = player.x, py = player.y, dark = t < 30 ? t / 30 : t < 158 ? 1 : Math.max(0, 1 - (t - 158) / 60);
+  const g = ctx.createRadialGradient(px, py, 25, px, py, 460);                       // everything around you turns black
+  g.addColorStop(0, `rgba(0,0,0,${0.3 * dark})`); g.addColorStop(0.3, `rgba(0,0,0,${0.92 * dark})`); g.addColorStop(1, `rgba(0,0,0,${dark})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const ang = -0.5, c = Math.cos(ang), sn = Math.sin(ang), L = 900;
+  if (t >= 36 && t < 158) {
+    const p = Math.min(1, (t - 36) / 22), x0 = px - c * L, y0 = py - sn * L, x1 = x0 + c * 2 * L * p, y1 = y0 + sn * 2 * L * p;
+    const open = Math.max(0, Math.min(1, (t - 72) / 38));                         // after a moment the line opens up
+    if (open > 0) {                                                               // ...into a red gap that swallows the screen
+      const w = open * open * 620; ctx.beginPath();
+      for (let i = 0; i <= 20; i++) { const sv = -1 + i / 10, off = w * (1 - Math.pow(Math.abs(sv), 1.6)); ctx.lineTo(px + c * L * sv - sn * off, py + sn * L * sv + c * off); }
+      for (let i = 20; i >= 0; i--) { const sv = -1 + i / 10, off = w * (1 - Math.pow(Math.abs(sv), 1.6)); ctx.lineTo(px + c * L * sv + sn * off, py + sn * L * sv - c * off); }
+      ctx.closePath(); const rg = ctx.createRadialGradient(px, py, 20, px, py, 520); rg.addColorStop(0, "rgba(255,70,40,0.98)"); rg.addColorStop(1, "rgba(190,0,20,0.98)"); ctx.fillStyle = rg; ctx.fill();
+    }
+    ctx.save(); ctx.lineCap = "round";
+    for (const [w, col] of [[16, "rgba(255,30,30,0.35)"], [6, "rgba(255,70,60,0.95)"], [2, "rgba(255,230,220,1)"]]) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); }   // the red slanted line
+    ctx.restore();
+  }
+  if (t >= 110 && t < 158) { const col = ["220,0,20", "255,255,255", "0,0,0", "255,225,50"][Math.min(3, Math.floor((t - 110) / 12))]; ctx.fillStyle = `rgb(${col})`; ctx.fillRect(0, 0, W, H); }   // red, white, black, yellow
+  if (t >= 158) {                                                                 // the burst of yellow
+    const k = (t - 158) / 60;
+    ctx.fillStyle = `rgba(255,225,60,${Math.max(0, 1 - k * 1.4)})`; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = `rgba(255,255,200,${Math.max(0, 0.9 - k)})`; ctx.lineWidth = 8 * (1 - k * 0.6);
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(px, py, Math.max(1, k * 700 - i * 90), 0, 7); ctx.stroke(); }
+  }
 }
 function tickScene() {                            // the cutscene: the screen darkens, lightning comes down around you, then a burst of yellow energy and you transform
   if (!scene) return;
+  if (scene.kind === "ssj2") return tickScene2();
   const t = ++scene.t;
   if (t > 30 && t < 165 && t % Math.max(4, 14 - Math.floor(t / 14)) === 0) {                        // lightning strikes more and more often
     const a = Math.random() * Math.PI * 2, d = 25 + Math.random() * 120;
@@ -1555,6 +1621,7 @@ function tickScene() {                            // the cutscene: the screen da
   if (t >= 240) scene = null;
 }
 function drawScene() {
+  if (scene.kind === "ssj2") return drawScene2();
   const t = scene.t, dark = t < 30 ? t / 30 : t < 170 ? 1 : Math.max(0, 1 - (t - 170) / 50);
   ctx.fillStyle = `rgba(0,0,10,${0.42 * dark})`; ctx.fillRect(0, 0, W, H);                         // the screen darkens...
   const g = ctx.createRadialGradient(player.x, player.y, 30 + (t < 170 ? t * 0.3 : 200), player.x, player.y, 430);   // ...except around you
@@ -3465,19 +3532,64 @@ function drawMenu() {
   ctx.textAlign = "left";
 }
 
+function drawStar(cx, cy, r, col) { ctx.fillStyle = col; ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); }
+function drawSeriesIcon(id, cx, cy) {             // a little emblem for each series
+  ctx.save();
+  if (id === "db") {                                                              // the four-star dragon ball
+    const g = ctx.createRadialGradient(cx - 12, cy - 14, 4, cx, cy, 42); g.addColorStop(0, "#ffd070"); g.addColorStop(0.6, "#f08a1c"); g.addColorStop(1, "#b0540c");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill();
+    for (const [dx, dy] of [[0, -18], [-18, 0], [18, 0], [0, 18]]) drawStar(cx + dx, cy + dy, 9, "#c9301c");
+    ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.ellipse(cx - 14, cy - 18, 10, 6, -0.6, 0, 7); ctx.fill();
+  } else if (id === "bleach") {                                                   // a black disk with a white blade
+    ctx.fillStyle = "#15151a"; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill(); ctx.strokeStyle = "#f2f2f2"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = "#f2f2f2"; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(cx - 20, cy + 20); ctx.lineTo(cx + 22, cy - 22); ctx.stroke();
+    ctx.fillStyle = "#ff9a2a"; ctx.beginPath(); ctx.arc(cx - 11, cy + 11, 7, 0, 7); ctx.fill(); ctx.strokeStyle = "#7a4a10"; ctx.lineWidth = 1.5; ctx.stroke();
+  } else if (id === "naruto") {                                                   // an orange disk with a swirl
+    ctx.fillStyle = "#f08a24"; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#fff6e0"; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.beginPath();
+    for (let a = 0; a < Math.PI * 4; a += 0.2) { const r = 3 + a * 2.5; ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } ctx.stroke();
+  } else if (id === "onepiece") {                                                 // a straw hat
+    ctx.fillStyle = "#f2cf5a"; ctx.strokeStyle = "#b8902a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy + 6, 26, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy + 8, 46, 13, 0, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#c8302a"; ctx.beginPath(); ctx.moveTo(cx - 26, cy + 4); ctx.arc(cx, cy + 6, 26, Math.PI, Math.PI + 0.9); ctx.lineTo(cx - 20, cy + 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#c8302a"; ctx.fillRect(cx - 26, cy - 1, 52, 7);
+  }
+  ctx.restore();
+}
+function drawSeriesSelect() {
+  drawBackdrop();
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = "bold 36px Georgia"; ctx.fillText("Choose your series", W / 2, 56);
+  const hover = seriesAt(mouse.x, mouse.y);
+  SERIES.forEach((sr, i) => {
+    const x = seriesX(i), y = SERIES_CARD.y - (i === hover && !sr.locked ? 8 : 0), cx = x + SERIES_CARD.w / 2;
+    ctx.fillStyle = i === hover && !sr.locked ? "#4a3a30" : "#33271f";
+    ctx.beginPath(); ctx.roundRect(x, y, SERIES_CARD.w, SERIES_CARD.h, 14); ctx.fill();
+    ctx.strokeStyle = i === hover && !sr.locked ? "#ffae42" : "#7a6552"; ctx.lineWidth = 3; ctx.stroke();
+    drawSeriesIcon(sr.id, cx, y + 85);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 24px Georgia"; ctx.fillText(sr.name, cx, y + 168);
+    ctx.fillStyle = "#d8c8b8"; ctx.font = "14px Georgia"; wrapText(sr.desc, cx, y + 196, SERIES_CARD.w - 28, 19);
+    if (sr.locked) {                                                                 // not playable yet
+      ctx.fillStyle = "rgba(10,6,4,0.62)"; ctx.beginPath(); ctx.roundRect(x, y, SERIES_CARD.w, SERIES_CARD.h, 14); ctx.fill();
+      ctx.fillStyle = "#ffae42"; ctx.font = "bold 18px Georgia"; ctx.fillText("Coming soon", cx, y + 226);
+    } else { ctx.fillStyle = "#ffae42"; ctx.font = "bold 13px Georgia"; ctx.fillText("[" + (i + 1) + "]", cx, y + SERIES_CARD.h - 14); }
+  });
+  ctx.textAlign = "left";
+  drawButton(BTN.back);
+}
 function drawClassSelect() {
   drawBackdrop();
-  ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = "bold 36px Georgia"; ctx.fillText("Choose your class", W / 2, 56);
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = "bold 36px Georgia"; ctx.fillText("Choose your character", W / 2, 56);
   const hover = classAt(mouse.x, mouse.y);
-  CLASSES.forEach((c, i) => {
+  seriesClasses().forEach((c, i) => {
     const x = classX(i), y = CLASS_CARD.y - (i === hover ? 8 : 0), cx = x + CLASS_CARD.w / 2;   // hovered card lifts up
     ctx.fillStyle = i === hover ? "#4a3a30" : "#33271f";
     ctx.beginPath(); ctx.roundRect(x, y, CLASS_CARD.w, CLASS_CARD.h, 14); ctx.fill();
     ctx.strokeStyle = i === hover ? "#ffae42" : "#7a6552"; ctx.lineWidth = 3; ctx.stroke();
-    drawHero(cx - 14, y + 78, 36, c.id, 0.4, c.id === "fighter" ? -0.5 : 0);                 // big preview
-    ctx.fillStyle = "#fff"; ctx.font = "bold 26px Georgia"; ctx.fillText(c.name, cx, y + 160);
-    ctx.fillStyle = "#d8c8b8"; ctx.font = "14px Georgia"; wrapText(c.desc, cx, y + 190, CLASS_CARD.w - 40, 19);
-    ctx.fillStyle = "#ffae42"; ctx.font = "bold 13px Georgia"; ctx.fillText("[" + (i + 1) + "]", cx, y + CLASS_CARD.h - 14);
+    drawHero(cx - 14, y + 66, 34, c.base, 0.4, c.base === "fighter" ? -0.5 : 0, null, false, false, false, 0, false, c.id);   // big preview (with that character's outfit)
+    ctx.fillStyle = "#fff"; ctx.font = "bold 21px Georgia"; wrapText(c.name, cx, y + 138, CLASS_CARD.w - 30, 24);
+    ctx.fillStyle = "#d8c8b8"; ctx.font = "13px Georgia"; wrapText(c.desc, cx, y + 190, CLASS_CARD.w - 36, 17);
+    ctx.fillStyle = "#ffae42"; ctx.font = "bold 13px Georgia"; ctx.fillText("[" + (i + 1) + "]", cx, y + CLASS_CARD.h - 10);
   });
   ctx.textAlign = "left";
   drawButton(BTN.back);
@@ -3486,6 +3598,7 @@ function drawClassSelect() {
 function draw() {
   ctx.clearRect(0, 0, W, H);
   if (state === "menu") return drawMenu();
+  if (state === "series") return drawSeriesSelect();
   if (state === "class") return drawClassSelect();
 
   ctx.save();
@@ -3837,6 +3950,7 @@ function draw() {
     }
     drawHero(player.x, player.y, player.r, player.class, player.angle, swordAngle, katanaMode() ? "bankai" : formOn(), limbMode(), maskOn(), katanaMode(), armorOn(), eyeOn(), player.attack === "galick" ? "vegeta" : player.attack === "eraser" ? "broly" : "goku");
     drawVollFront();
+    if (wizForm() === "ssj2") { ctx.save(); drawLightningAura("255,235,70", "255,255,255", 10); ctx.restore(); }   // Super Saiyan 2: lightning crackles around you, like in the anime
     if (limbMode() && player.kx === 7) drawHandClaw();
     if (limbMode() && player.kx === 14) drawKSword();
     ctx.globalAlpha = 1;
