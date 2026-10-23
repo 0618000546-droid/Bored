@@ -3540,10 +3540,18 @@ function drawSeriesIcon(id, cx, cy) {             // a little emblem for each se
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill();
     for (const [dx, dy] of [[0, -18], [-18, 0], [18, 0], [0, 18]]) drawStar(cx + dx, cy + dy, 9, "#c9301c");
     ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.ellipse(cx - 14, cy - 18, 10, 6, -0.6, 0, 7); ctx.fill();
-  } else if (id === "bleach") {                                                   // a black disk with a white blade
-    ctx.fillStyle = "#15151a"; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill(); ctx.strokeStyle = "#f2f2f2"; ctx.lineWidth = 3; ctx.stroke();
-    ctx.strokeStyle = "#f2f2f2"; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(cx - 20, cy + 20); ctx.lineTo(cx + 22, cy - 22); ctx.stroke();
-    ctx.fillStyle = "#ff9a2a"; ctx.beginPath(); ctx.arc(cx - 11, cy + 11, 7, 0, 7); ctx.fill(); ctx.strokeStyle = "#7a4a10"; ctx.lineWidth = 1.5; ctx.stroke();
+  } else if (id === "bleach") {                                                   // the Bleach logo: a white skull on a black shield wrapped in blue flames
+    const k = 0.72, oy = cy + 6, FL = [[0, 50, -34, 46, -42, 14], [-42, 14, -52, -14, -38, -34], [-38, -34, -46, -52, -30, -62], [-30, -62, -36, -40, -16, -34], [-16, -34, -12, -54, 0, -66],
+      [0, -66, 12, -54, 16, -34], [16, -34, 36, -40, 30, -62], [30, -62, 46, -52, 38, -34], [38, -34, 52, -14, 42, 14], [42, 14, 34, 46, 0, 50]];   // [from x, from y, control x, control y, to x, to y]
+    const flame = (sc, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(cx, oy + 50 * sc * k); for (const [, , qx, qy, ex, ey] of FL) ctx.quadraticCurveTo(cx + qx * sc * k, oy + qy * sc * k, cx + ex * sc * k, oy + ey * sc * k); ctx.closePath(); ctx.fill(); };
+    flame(1.13, "#a9c3d2"); flame(1.0, "#3a86a8"); flame(0.84, "#0b0d12");        // a pale outer glow, the blue flame, and the black shield
+    const P = (x, y) => [cx + x * k, oy + y * k];
+    ctx.fillStyle = "#f4f4f6"; ctx.beginPath(); ctx.moveTo(...P(-23, -1));          // the skull
+    ctx.quadraticCurveTo(...P(-23, -30), ...P(0, -30)); ctx.quadraticCurveTo(...P(23, -30), ...P(23, -1));
+    ctx.lineTo(...P(16, 16)); ctx.lineTo(...P(13, 29)); ctx.lineTo(...P(-13, 29)); ctx.lineTo(...P(-16, 16)); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#0b0d12";
+    for (const e of [[[-21, -15], [-4, -10], [-11, 8]], [[21, -15], [4, -10], [11, 8]], [[0, 8], [-4, 16], [4, 16]]]) { ctx.beginPath(); ctx.moveTo(...P(...e[0])); ctx.lineTo(...P(...e[1])); ctx.lineTo(...P(...e[2])); ctx.closePath(); ctx.fill(); }   // two slanted eye sockets and a nose
+    ctx.strokeStyle = "#0b0d12"; ctx.lineWidth = 2.2 * k; ctx.beginPath(); for (const x of [-7, 0, 7]) { ctx.moveTo(...P(x, 19)); ctx.lineTo(...P(x, 29)); } ctx.stroke();   // teeth
   } else if (id === "naruto") {                                                   // an orange disk with a swirl
     ctx.fillStyle = "#f08a24"; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill();
     ctx.strokeStyle = "#fff6e0"; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.beginPath();
